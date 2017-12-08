@@ -1,7 +1,7 @@
-import $file.ProjectVersion
+import $file.ProjectUtil
 
 import ammonite.ops._
-import ProjectVersion._
+import ProjectUtil._
 
 def indexScalaProjects(baseDir: Path): Unit = {
   require(baseDir.isDir)
@@ -9,17 +9,17 @@ def indexScalaProjects(baseDir: Path): Unit = {
   val projects = ls.iter(baseDir)
     .filter(_.isDir)
     .map(_.name)
+    .map(Project)
     .toVector
-    .sorted
+    .sortBy(_.name)
 
   write.over(baseDir/"index.md", projectsPage(projects))
   projects foreach { indexProject(baseDir, _) }
 }
 
-private def indexProject(baseDir: Path, project: String): Unit = {
-  val projectDir = baseDir/project
+private def indexProject(baseDir: Path, project: Project): Unit = {
+  val projectDir = baseDir/project.name
   require(projectDir.isDir)
-
 
   val scalaVersions = ls.iter(projectDir)
     .filter(_.isDir)
@@ -33,7 +33,7 @@ private def indexProject(baseDir: Path, project: String): Unit = {
   scalaVersions foreach { indexVersions(projectDir, project, _) }
 }
 
-private def indexVersions(projectDir: Path, project: String, scalaVersion: ScalaVersion): Unit = {
+private def indexVersions(projectDir: Path, project: Project, scalaVersion: ScalaVersion): Unit = {
   val versionDir = projectDir/scalaVersion.exact
   require(versionDir.isDir)
 
@@ -51,10 +51,10 @@ private def indexVersions(projectDir: Path, project: String, scalaVersion: Scala
   write.over(versionDir/'latest/"index.html", projectLatestRedirect(latestVersion))
 }
 
-private def projectsPage(projects: Seq[String]): String = {
+private def projectsPage(projects: Seq[Project]): String = {
   s"""# Scala Projects
      |
-     |${projects map { s => s"[$s]($s)" } mkString "\n\n"}
+     |${projects map { p => s"[$p]($p)" } mkString "\n\n"}
      |
      |----------------
      |
@@ -69,7 +69,7 @@ private def parseScalaVersion(version: String): ScalaVersion = {
   }
 }
 
-private def scalaVersionPage(project: String, scalaVersions: Seq[ScalaVersion]): String = {
+private def scalaVersionPage(project: Project, scalaVersions: Seq[ScalaVersion]): String = {
   s"""# $project
      |
      |${scalaVersions map { v => s"[${v.pretty}](${v.exact})" } mkString "\n\n"}
@@ -80,7 +80,7 @@ private def scalaVersionPage(project: String, scalaVersions: Seq[ScalaVersion]):
      |""".stripMargin
 }
 
-private def projectVersionPage(project: String,
+private def projectVersionPage(project: Project,
                                scalaVersion: ScalaVersion,
                                projectVersions: Seq[ProjectVersion],
                                latestVersion: String): String = {
