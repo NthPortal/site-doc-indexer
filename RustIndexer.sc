@@ -1,38 +1,27 @@
-import $file.ProjectUtil
+import $file.IndexUtils
 
 import ammonite.ops._
-import ProjectUtil._
+import IndexUtils._
 
 def indexRustProjects(baseDir: Path): Unit = {
   require(baseDir.isDir)
 
-  val projects = ls.iter(baseDir)
-    .filter(_.isDir)
-    .map(_.name)
-    .map(Project)
-    .toVector
-    .sortBy(_.name)
+  val projects = readProjectsFromDir(baseDir)
 
   write.over(baseDir/"index.md", projectsPage(projects))
-  projects foreach { indexProject(baseDir, _) }
+  projects foreach { indexVersions(baseDir, _) }
 }
 
-private def indexProject(baseDir: Path, project: Project): Unit = {
-  val projectDir = baseDir/project.name
-  require(projectDir.isDir)
+private def indexVersions(baseDir: Path, project: Project): Unit = {
+  val versionDir = baseDir/project.name
+  require(versionDir.isDir)
 
-  val projectVersions = ls(projectDir).iterator
-    .filter(_.isDir)
-    .map(_.name)
-    .filterNot(_ == "latest")
-    .map(parseProjectVersion)
-    .toVector
-    .sortBy(_.version)
-
+  val projectVersions = readVersionsFromDir(versionDir)
   val latestVersion = projectVersions.maxBy(_.version).exact
-  write.over(projectDir/"index.md",
+
+  write.over(versionDir/"index.md",
     projectVersionPage(project, projectVersions, latestVersion))
-  write.over(projectDir/'latest/"index.html", projectLatestRedirect(project, latestVersion))
+  write.over(versionDir/'latest/"index.html", projectLatestRedirect(project, latestVersion))
 }
 
 private def projectsPage(projects: Seq[Project]): String = {

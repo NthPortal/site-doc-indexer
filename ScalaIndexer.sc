@@ -1,17 +1,12 @@
-import $file.ProjectUtil
+import $file.IndexUtils
 
 import ammonite.ops._
-import ProjectUtil._
+import IndexUtils._
 
 def indexScalaProjects(baseDir: Path): Unit = {
   require(baseDir.isDir)
 
-  val projects = ls.iter(baseDir)
-    .filter(_.isDir)
-    .map(_.name)
-    .map(Project)
-    .toVector
-    .sortBy(_.name)
+  val projects = readProjectsFromDir(baseDir)
 
   write.over(baseDir/"index.md", projectsPage(projects))
   projects foreach { indexProject(baseDir, _) }
@@ -37,15 +32,9 @@ private def indexVersions(projectDir: Path, project: Project, scalaVersion: Scal
   val versionDir = projectDir/scalaVersion.exact
   require(versionDir.isDir)
 
-  val projectVersions = ls(versionDir).iterator
-    .filter(_.isDir)
-    .map(_.name)
-    .filterNot(_ == "latest")
-    .map(parseProjectVersion)
-    .toVector
-    .sortBy(_.version)
-
+  val projectVersions = readVersionsFromDir(versionDir)
   val latestVersion = projectVersions.maxBy(_.version).exact
+
   write.over(versionDir/"index.md",
     projectVersionPage(project, scalaVersion, projectVersions, latestVersion))
   write.over(versionDir/'latest/"index.html", projectLatestRedirect(latestVersion))
@@ -60,13 +49,6 @@ private def projectsPage(projects: Seq[Project]): String = {
      |
      |[<=](..)
      |""".stripMargin
-}
-
-private def parseScalaVersion(version: String): ScalaVersion = {
-  version split '-' match {
-    case Array(_, ver) => ScalaVersion(version, s"Scala $ver")
-    case _ => ScalaVersion(version, version)
-  }
 }
 
 private def scalaVersionPage(project: Project, scalaVersions: Seq[ScalaVersion]): String = {
@@ -106,3 +88,10 @@ private def projectLatestRedirect(latestVersion: String): String = {
 }
 
 private case class ScalaVersion(exact: String, pretty: String)
+
+private def parseScalaVersion(version: String): ScalaVersion = {
+  version split '-' match {
+    case Array(_, ver) => ScalaVersion(version, s"Scala $ver")
+    case _ => ScalaVersion(version, version)
+  }
+}
